@@ -467,10 +467,10 @@
                     🔄 Atualizar
                 </button>
                 <div class="dropdown">
-                    <button class="btn dropdown-btn">📥 Exportar</button>
+                    <button class="btn dropdown-btn">📊 Exportar</button>
                     <div class="dropdown-content">
                         <a onclick="exportarCSV()">📄 Exportar CSV</a>
-                        <a onclick="exportarExcel()">📊 Exportar Excel</a>
+                        <a onclick="exportarExcel()">📗 Exportar Excel</a>
                     </div>
                 </div>
             </div>
@@ -484,7 +484,7 @@
             <div class="kpi-card">
                 <div class="kpi-header">
                     <span class="kpi-title">Total de Vagas Disponíveis</span>
-                    <div class="kpi-icon">📊</div>
+                    <div class="kpi-icon">📋</div>
                 </div>
                 <div class="kpi-value" id="totalVagas">0</div>
                 <div class="kpi-trend">Vagas ativas</div>
@@ -493,7 +493,7 @@
             <div class="kpi-card">
                 <div class="kpi-header">
                     <span class="kpi-title">Primeira Consulta</span>
-                    <div class="kpi-icon">👥</div>
+                    <div class="kpi-icon">✅</div>
                 </div>
                 <div class="kpi-value" style="color: #4CAF50;" id="primeiraConsulta">0</div>
                 <div class="kpi-trend" id="percPrimeira">0% do total</div>
@@ -531,7 +531,7 @@
             </div>
 
             <div class="filters-actions">
-                <button class="btn" onclick="limparFiltros()">🔄 Limpar Filtros</button>
+                <button class="btn" onclick="limparFiltros()">🗑️ Limpar Filtros</button>
                 <div class="sync-status">
                     <div class="sync-indicator"></div>
                     <span id="syncStatus">Última atualização: Agora</span>
@@ -571,10 +571,10 @@
     </main>
 
     <script>
-        // Configuração
+        // Configuração - URL CORRIGIDA
         const SPREADSHEET_ID = "1mIov9Z12Kmy08N5LVBX7dnqc31oyleXuZYr-bwe63eM";
         const SHEET_GID = "0";
-        const CSV_URL = `https://docs.google.com/spreadsheets/d/1mIov9Z12Kmy08N5LVBX7dnqc31oyleXuZYr-bwe63eM/edit?gid=0#gid=0`;
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
         // Estado global
         let allData = [];
@@ -593,22 +593,48 @@
         // Carregar dados
         async function carregarDados() {
             try {
+                console.log('Carregando dados da URL:', CSV_URL);
                 const response = await fetch(CSV_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                
                 const csv = await response.text();
+                console.log('Dados CSV recebidos:', csv.substring(0, 500));
+                
                 allData = parseCSV(csv);
+                console.log('Dados processados:', allData.length, 'registros');
+                
                 atualizarUI();
                 preencherFiltros();
+                
+                // Atualizar status
+                const agora = new Date().toLocaleTimeString('pt-BR');
+                document.getElementById('syncStatus').textContent = `Última atualização: ${agora}`;
+                
             } catch (error) {
                 console.error("Erro ao carregar dados:", error);
                 document.getElementById("tableContainer").innerHTML = 
-                    '<div class="loading"><p style="color: red;">Erro ao carregar dados. Verifique a URL do Google Sheets.</p></div>';
+                    `<div class="loading">
+                        <p style="color: red;">❌ Erro ao carregar dados</p>
+                        <p style="font-size: 12px; margin-top: 10px;">Detalhes: ${error.message}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">Verifique se o Google Sheets está público (compartilhamento: "Qualquer pessoa com o link")</p>
+                    </div>`;
             }
         }
 
-        // Parse CSV
+        // Parse CSV melhorado
         function parseCSV(csv) {
             const lines = csv.trim().split('\n');
-            const headers = lines[0].split(',').map(h => h.trim());
+            if (lines.length < 2) {
+                console.error('CSV vazio ou inválido');
+                return [];
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            console.log('Cabeçalhos encontrados:', headers);
+            
             const data = [];
 
             for (let i = 1; i < lines.length; i++) {
@@ -616,12 +642,16 @@
                 const currentLine = lines[i].split(',');
 
                 for (let j = 0; j < headers.length; j++) {
-                    obj[headers[j]] = currentLine[j] ? currentLine[j].trim() : '';
+                    obj[headers[j]] = currentLine[j] ? currentLine[j].trim().replace(/"/g, '') : '';
                 }
 
                 // Filtrar dados válidos
-                if (obj['Qtde. disponível'] && parseInt(obj['Qtde. disponível']) > 0 &&
-                    obj['Tipo Agenda'] !== 'LOCAL' && obj['Situação'] !== 'BLOQUEADO' &&
+                const qtdeDisponivel = parseInt(obj['Qtde. disponível'] || obj['Qtde. disponivel'] || 0);
+                
+                if (qtdeDisponivel > 0 &&
+                    obj['Tipo Agenda'] !== 'LOCAL' && 
+                    obj['Situação'] !== 'BLOQUEADO' &&
+                    obj['Situacao'] !== 'BLOQUEADO' &&
                     allowedUnits.some(u => obj['Unidade']?.includes(u))) {
                     data.push(obj);
                 }
@@ -648,6 +678,7 @@
                 const matchSearch = !search || 
                     item['Profissional']?.toLowerCase().includes(search) ||
                     item['Serviço']?.toLowerCase().includes(search) ||
+                    item['Servico']?.toLowerCase().includes(search) ||
                     item['CBO']?.toLowerCase().includes(search);
 
                 const matchSpecialty = !specialty || item['CBO'] === specialty;
@@ -659,14 +690,14 @@
 
         // Atualizar KPIs
         function atualizarKPIs(dados) {
-            const total = dados.reduce((sum, d) => sum + parseInt(d['Qtde. disponível'] || 0), 0);
+            const total = dados.reduce((sum, d) => sum + parseInt(d['Qtde. disponível'] || d['Qtde. disponivel'] || 0), 0);
             const primeira = dados.filter(d => d['Tipo Agenda'] === 'Primeira')
-                .reduce((sum, d) => sum + parseInt(d['Qtde. disponível'] || 0), 0);
+                .reduce((sum, d) => sum + parseInt(d['Qtde. disponível'] || d['Qtde. disponivel'] || 0), 0);
             const retorno = total - primeira;
 
-            document.getElementById('totalVagas').textContent = total;
-            document.getElementById('primeiraConsulta').textContent = primeira;
-            document.getElementById('retornos').textContent = retorno;
+            document.getElementById('totalVagas').textContent = total.toLocaleString('pt-BR');
+            document.getElementById('primeiraConsulta').textContent = primeira.toLocaleString('pt-BR');
+            document.getElementById('retornos').textContent = retorno.toLocaleString('pt-BR');
             document.getElementById('percPrimeira').textContent = `${Math.round((primeira / (total || 1)) * 100)}% do total`;
             document.getElementById('percRetorno').textContent = `${Math.round((retorno / (total || 1)) * 100)}% do total`;
         }
@@ -679,10 +710,11 @@
                 if (!especialidades[d['CBO']]) {
                     especialidades[d['CBO']] = { primeira: 0, retorno: 0 };
                 }
+                const qtde = parseInt(d['Qtde. disponível'] || d['Qtde. disponivel'] || 0);
                 if (d['Tipo Agenda'] === 'Primeira') {
-                    especialidades[d['CBO']].primeira += parseInt(d['Qtde. disponível'] || 0);
+                    especialidades[d['CBO']].primeira += qtde;
                 } else {
-                    especialidades[d['CBO']].retorno += parseInt(d['Qtde. disponível'] || 0);
+                    especialidades[d['CBO']].retorno += qtde;
                 }
             });
 
@@ -712,14 +744,20 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: 'y'
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
                 }
             });
 
             // Gráfico de Unidades
             const unidades = {};
             dados.forEach(d => {
-                unidades[d['Unidade']] = (unidades[d['Unidade']] || 0) + parseInt(d['Qtde. disponível'] || 0);
+                const qtde = parseInt(d['Qtde. disponível'] || d['Qtde. disponivel'] || 0);
+                unidades[d['Unidade']] = (unidades[d['Unidade']] || 0) + qtde;
             });
 
             const ctxUnit = document.getElementById('chartUnidades').getContext('2d');
@@ -735,7 +773,12 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
                 }
             });
         }
@@ -765,6 +808,7 @@
 
             dados.forEach(d => {
                 const agendaBadge = d['Tipo Agenda'] === 'Primeira' ? 'badge-success' : 'badge-warning';
+                const qtde = d['Qtde. disponível'] || d['Qtde. disponivel'] || '0';
                 html += `
                     <tr>
                         <td>${d['Unidade']}</td>
@@ -773,9 +817,9 @@
                             <span class="badge badge-primary">${d['CBO']}</span><br>
                             <small style="color: #999;">${d['Especialidade']}</small>
                         </td>
-                        <td>${d['Tipo atendimento']}</td>
+                        <td>${d['Tipo atendimento'] || d['Tipo Atendimento'] || ''}</td>
                         <td><span class="badge ${agendaBadge}">${d['Tipo Agenda']}</span></td>
-                        <td style="text-align: right; font-weight: bold; color: var(--primary);">${d['Qtde. disponível']}</td>
+                        <td style="text-align: right; font-weight: bold; color: var(--primary);">${qtde}</td>
                     </tr>
                 `;
             });
@@ -797,12 +841,13 @@
             const unidades = new Set();
 
             allData.forEach(d => {
-                especialidades.add(d['CBO']);
-                unidades.add(d['Unidade']);
+                if (d['CBO']) especialidades.add(d['CBO']);
+                if (d['Unidade']) unidades.add(d['Unidade']);
             });
 
             const espSelect = document.getElementById('specialtyFilter');
-            especialidades.forEach(e => {
+            espSelect.innerHTML = '<option value="">Todas as Especialidades</option>';
+            [...especialidades].sort().forEach(e => {
                 const option = document.createElement('option');
                 option.value = e;
                 option.textContent = e;
@@ -810,7 +855,8 @@
             });
 
             const unitSelect = document.getElementById('unitFilter');
-            unidades.forEach(u => {
+            unitSelect.innerHTML = '<option value="">Todas as Unidades</option>';
+            [...unidades].sort().forEach(u => {
                 const option = document.createElement('option');
                 option.value = u;
                 option.textContent = u;
@@ -822,10 +868,7 @@
         document.getElementById('searchInput').addEventListener('input', atualizarUI);
         document.getElementById('specialtyFilter').addEventListener('change', atualizarUI);
         document.getElementById('unitFilter').addEventListener('change', atualizarUI);
-        document.getElementById('btnAtualizar').addEventListener('click', () => {
-            carregarDados();
-            document.getElementById('syncStatus').textContent = 'Última atualização: Agora';
-        });
+        document.getElementById('btnAtualizar').addEventListener('click', carregarDados);
 
         // Limpar Filtros
         function limparFiltros() {
@@ -841,15 +884,17 @@
             let csv = 'Unidade,Profissional,CBO,Especialidade,Tipo Atendimento,Tipo Agenda,Vagas\n';
             
             dados.forEach(d => {
-                csv += `"${d['Unidade']}","${d['Profissional']}","${d['CBO']}","${d['Especialidade']}","${d['Tipo atendimento']}","${d['Tipo Agenda']}",${d['Qtde. disponível']}\n`;
+                const qtde = d['Qtde. disponível'] || d['Qtde. disponivel'] || '0';
+                csv += `"${d['Unidade']}","${d['Profissional']}","${d['CBO']}","${d['Especialidade']}","${d['Tipo atendimento'] || d['Tipo Atendimento']}","${d['Tipo Agenda']}",${qtde}\n`;
             });
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `consolidado-ofertas-${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
+            window.URL.revokeObjectURL(url);
         }
 
         // Exportar Excel (simulado com HTML)
@@ -858,7 +903,8 @@
             let html = '<table border="1"><tr><th>Unidade</th><th>Profissional</th><th>CBO</th><th>Especialidade</th><th>Tipo Atendimento</th><th>Tipo Agenda</th><th>Vagas</th></tr>';
             
             dados.forEach(d => {
-                html += `<tr><td>${d['Unidade']}</td><td>${d['Profissional']}</td><td>${d['CBO']}</td><td>${d['Especialidade']}</td><td>${d['Tipo atendimento']}</td><td>${d['Tipo Agenda']}</td><td>${d['Qtde. disponível']}</td></tr>`;
+                const qtde = d['Qtde. disponível'] || d['Qtde. disponivel'] || '0';
+                html += `<tr><td>${d['Unidade']}</td><td>${d['Profissional']}</td><td>${d['CBO']}</td><td>${d['Especialidade']}</td><td>${d['Tipo atendimento'] || d['Tipo Atendimento']}</td><td>${d['Tipo Agenda']}</td><td>${qtde}</td></tr>`;
             });
 
             html += '</table>';
@@ -869,6 +915,7 @@
             a.href = url;
             a.download = `consolidado-ofertas-${new Date().toISOString().split('T')[0]}.xls`;
             a.click();
+            window.URL.revokeObjectURL(url);
         }
 
         // Carregar dados ao iniciar
