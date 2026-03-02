@@ -10,9 +10,9 @@ Chart.register(ChartDataLabels);
 // ============================================================
 // CONFIGURAÇÕES
 // ============================================================
-const SHEET_ID   = '18fXmK93m5xSTIz-q2sUBOZyPH7m7w6fSepZpLIyp0-k';
-const NOME_ABA   = 'ofertas';
-const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(NOME_ABA)}`;
+const SHEET_ID  = '1gGIHpkw9Osr_881n5Vke7Fb3LWs2Z0p1';
+const SHEET_GID = '1698493941';
+const CSV_URL   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
 // ============================================================
 // MAPEAMENTO DE OPERADORES
