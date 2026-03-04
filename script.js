@@ -10,11 +10,10 @@ Chart.register(ChartDataLabels);
 // ============================================================
 // CONFIGURAÇÕES
 // ============================================================
-// ✅ CORREÇÃO: ID atualizado para a planilha que você enviou
 const SHEET_ID  = '1puNbYysRBj-5CY6fhnHNnYd9OH96cl7guMFBOLeYZV4';
 const SHEET_GID = '1698493941';
 
-// ✅ Melhoria pontual para evitar cache/intermediários do Google:
+// Melhoria pontual para evitar cache/intermediários do Google:
 // tenta GVIZ primeiro e usa fallback para export
 const CSV_URL_GVIZ   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 const CSV_URL_EXPORT = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
