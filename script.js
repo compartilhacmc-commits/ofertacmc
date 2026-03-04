@@ -1,6 +1,7 @@
 /* ============================================================
    DIRETORIA DE REGULAÇÃO DO ACESSO – DASHBOARD
    script.js – v3.0 (com novos cards e filtros)
+   Correção: leitura do Google Sheets via GVIZ + fallback + anti-cache
    ============================================================ */
 
 'use strict';
@@ -12,7 +13,15 @@ Chart.register(ChartDataLabels);
 // ============================================================
 const SHEET_ID  = '1gGIHpkw9Osr_881n5Vke7Fb3LWs2Z0p1';
 const SHEET_GID = '1698493941';
-const CSV_URL   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
+
+/**
+ * Correção principal:
+ * - Endpoint GVIZ costuma refletir atualizações mais rápido/estável
+ * - Mantemos fallback no endpoint export?format=csv
+ * - Cache-buster em ambos
+ */
+const CSV_URL_GVIZ   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+const CSV_URL_EXPORT = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
 // ============================================================
 // MAPEAMENTO DE OPERADORES
@@ -247,8 +256,30 @@ function isSameDay(d1, d2) {
 }
 
 // ============================================================
-// CARREGAR DADOS
+// CARREGAR DADOS (CORRIGIDO)
 // ============================================================
+function looksLikeHtml(text) {
+  if (!text) return false;
+  const t = text.trim().slice(0, 200).toLowerCase();
+  return t.startsWith('<!doctype html') || t.startsWith('<html') || t.includes('<head') || t.includes('<body');
+}
+
+async function fetchCsvText(urlBase) {
+  const url = urlBase + (urlBase.includes('?') ? '&' : '?') + 't=' + Date.now();
+
+  const response = await fetch(url, {
+    cache: 'no-store',
+    mode: 'cors',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache'
+    }
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return await response.text();
+}
+
 async function loadData() {
   showLoading(true);
   setStatus('Carregando...', false);
@@ -256,13 +287,18 @@ async function loadData() {
   icon.classList.add('spinning');
 
   try {
-    const response = await fetch(CSV_URL + '&t=' + Date.now(), {
-      cache: 'no-store',
-      mode: 'cors'
-    });
+    // 1) Tenta GVIZ (mais confiável para atualizar)
+    let text = await fetchCsvText(CSV_URL_GVIZ);
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const text = await response.text();
+    // Se vier HTML (login/aviso/cache estranho), tenta fallback
+    if (looksLikeHtml(text)) {
+      text = await fetchCsvText(CSV_URL_EXPORT);
+    }
+
+    // Se ainda vier HTML, então não é CSV acessível
+    if (looksLikeHtml(text)) {
+      throw new Error('Resposta HTML (provável permissão/restrição da planilha).');
+    }
 
     Papa.parse(text, {
       header: true,
@@ -286,8 +322,8 @@ async function loadData() {
       }
     });
   } catch (err) {
-    console.error('Fetch error:', err);
-    showError('Não foi possível carregar os dados. Verifique as permissões da planilha.');
+    console.error('Load error:', err);
+    showError('Não foi possível carregar os dados. Verifique as permissões da planilha e se os dados foram inseridos na aba correta (GID).');
     icon.classList.remove('spinning');
     showLoading(false);
   }
@@ -443,15 +479,13 @@ function clearFilters() {
 // ============================================================
 function updateKPIs() {
   const total = filteredData.length;
-  
-  // Mês atual e próximo mês
+
   const hoje = new Date();
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
-  
+
   const mesAtualStr = MESES_PT[mesAtual] + '/' + anoAtual;
-  
-  // Próximo mês (considerando virada de ano)
+
   let proximoMes = mesAtual + 1;
   let proximoAno = anoAtual;
   if (proximoMes > 11) {
@@ -459,7 +493,7 @@ function updateKPIs() {
     proximoAno = anoAtual + 1;
   }
   const proximoMesStr = MESES_PT[proximoMes] + '/' + proximoAno;
-  
+
   const ofertaMesAtual = filteredData.filter(r => r.mesAgendamento === mesAtualStr).length;
   const ofertaProximoMes = filteredData.filter(r => r.mesAgendamento === proximoMesStr).length;
 
