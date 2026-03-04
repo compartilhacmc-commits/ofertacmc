@@ -1,7 +1,6 @@
 /* ============================================================
    DIRETORIA DE REGULAÇÃO DO ACESSO – DASHBOARD
    script.js – v3.0 (com novos cards e filtros)
-   Correção: leitura do Google Sheets via GVIZ + fallback + anti-cache
    ============================================================ */
 
 'use strict';
@@ -11,15 +10,12 @@ Chart.register(ChartDataLabels);
 // ============================================================
 // CONFIGURAÇÕES
 // ============================================================
-const SHEET_ID  = '1gGIHpkw9Osr_881n5Vke7Fb3LWs2Z0p1';
+// ✅ CORREÇÃO: ID atualizado para a planilha que você enviou
+const SHEET_ID  = '1puNbYysRBj-5CY6fhnHNnYd9OH96cl7guMFBOLeYZV4';
 const SHEET_GID = '1698493941';
 
-/**
- * Correção principal:
- * - Endpoint GVIZ costuma refletir atualizações mais rápido/estável
- * - Mantemos fallback no endpoint export?format=csv
- * - Cache-buster em ambos
- */
+// ✅ Melhoria pontual para evitar cache/intermediários do Google:
+// tenta GVIZ primeiro e usa fallback para export
 const CSV_URL_GVIZ   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 const CSV_URL_EXPORT = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
@@ -256,7 +252,7 @@ function isSameDay(d1, d2) {
 }
 
 // ============================================================
-// CARREGAR DADOS (CORRIGIDO)
+// CARREGAR DADOS
 // ============================================================
 function looksLikeHtml(text) {
   if (!text) return false;
@@ -266,16 +262,7 @@ function looksLikeHtml(text) {
 
 async function fetchCsvText(urlBase) {
   const url = urlBase + (urlBase.includes('?') ? '&' : '?') + 't=' + Date.now();
-
-  const response = await fetch(url, {
-    cache: 'no-store',
-    mode: 'cors',
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache'
-    }
-  });
-
+  const response = await fetch(url, { cache: 'no-store', mode: 'cors' });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return await response.text();
 }
@@ -287,17 +274,15 @@ async function loadData() {
   icon.classList.add('spinning');
 
   try {
-    // 1) Tenta GVIZ (mais confiável para atualizar)
     let text = await fetchCsvText(CSV_URL_GVIZ);
 
-    // Se vier HTML (login/aviso/cache estranho), tenta fallback
+    // Fallback para export se vier HTML por algum motivo
     if (looksLikeHtml(text)) {
       text = await fetchCsvText(CSV_URL_EXPORT);
     }
 
-    // Se ainda vier HTML, então não é CSV acessível
     if (looksLikeHtml(text)) {
-      throw new Error('Resposta HTML (provável permissão/restrição da planilha).');
+      throw new Error('Resposta HTML (provável permissão/restrição).');
     }
 
     Papa.parse(text, {
@@ -322,8 +307,8 @@ async function loadData() {
       }
     });
   } catch (err) {
-    console.error('Load error:', err);
-    showError('Não foi possível carregar os dados. Verifique as permissões da planilha e se os dados foram inseridos na aba correta (GID).');
+    console.error('Fetch error:', err);
+    showError('Não foi possível carregar os dados. Verifique as permissões da planilha.');
     icon.classList.remove('spinning');
     showLoading(false);
   }
@@ -556,9 +541,6 @@ function renderAllCharts() {
   renderChartTipoAtendimento();
 }
 
-// ============================================================
-// 1. Agendamentos por Prestador
-// ============================================================
 function renderChartPrestador() {
   const ctx = document.getElementById('chartPrestador')?.getContext('2d');
   if (!ctx) return;
@@ -624,9 +606,6 @@ function renderChartPrestador() {
   });
 }
 
-// ============================================================
-// 2. 1ª Consulta vs Retorno
-// ============================================================
 function renderChartTipoAtendimento() {
   const ctx = document.getElementById('chartTipoAtendimento')?.getContext('2d');
   if (!ctx) return;
