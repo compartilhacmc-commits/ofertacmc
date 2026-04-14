@@ -1,6 +1,6 @@
 /* ============================================================
    DIRETORIA DE REGULAÇÃO DO ACESSO – DASHBOARD
-   style.css – v3.0 (com novos cards e filtros)
+   style.css – v3.1
    ============================================================ */
 
 :root {
@@ -26,7 +26,6 @@
   --radius:         14px;
   --radius-sm:      8px;
   --transition:     0.25s ease;
-  --header-h:       160px;
 }
 
 /* ---- RESET ---- */
@@ -110,25 +109,19 @@ body {
   text-transform: uppercase;
 }
 
-.header-sub2 {
-  font-size: 0.88rem;
-  font-weight: 500;
+.h-meta {
+  font-size: 0.82rem;
   color: rgba(255,255,255,0.78);
+  margin-top: 5px;
 }
 
 .header-ref {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: rgba(255,255,255,0.7);
   font-style: italic;
+  margin-top: 2px;
 }
 .header-ref strong { color: rgba(255,255,255,0.9); }
-
-.header-creator {
-  font-size: 0.75rem;
-  color: rgba(255,255,255,0.55);
-  font-style: italic;
-}
-.header-creator strong { color: rgba(255,255,255,0.72); }
 
 /* Header Actions */
 .header-actions {
@@ -261,7 +254,7 @@ body {
 .card:hover { box-shadow: var(--shadow-hover); }
 
 /* ============================================================
-   FILTERS (NOVA ORDEM)
+   FILTERS
    ============================================================ */
 .filters-section {
   padding: 20px 24px;
@@ -301,7 +294,7 @@ body {
 
 .filters-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 14px;
   align-items: end;
 }
@@ -365,28 +358,8 @@ body {
   pointer-events: none;
 }
 
-/* Flatpickr custom */
-.flatpickr-calendar {
-  border-radius: 12px !important;
-  box-shadow: 0 8px 32px rgba(30,58,95,0.2) !important;
-  border: 1.5px solid var(--border) !important;
-  font-family: 'Inter', sans-serif !important;
-}
-.flatpickr-day.selected, .flatpickr-day.selected:hover {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
-}
-.flatpickr-day.today { border-color: var(--accent) !important; }
-.flatpickr-months .flatpickr-month { background: var(--primary) !important; border-radius: 10px 10px 0 0; }
-.flatpickr-current-month { color: #fff !important; }
-.flatpickr-weekday { color: var(--accent) !important; font-weight: 600 !important; }
-.flatpickr-monthDropdown-months { background: var(--primary) !important; color: #fff !important; }
-.numInputWrapper span.arrowUp:after  { border-bottom-color: #fff !important; }
-.numInputWrapper span.arrowDown:after { border-top-color: #fff !important; }
-.flatpickr-prev-month, .flatpickr-next-month { color: #fff !important; fill: #fff !important; }
-
 /* ============================================================
-   NOVOS KPI CARDS
+   KPI CARDS
    ============================================================ */
 .kpi-section {
   display: grid;
@@ -456,7 +429,7 @@ body {
 }
 
 /* ============================================================
-   CHARTS (APENAS PRESTADOR E TIPO ATENDIMENTO)
+   CHARTS - RESPONSIVO
    ============================================================ */
 .charts-row {
   display: grid;
@@ -473,7 +446,9 @@ body {
   transition: box-shadow var(--transition);
   display: flex;
   flex-direction: column;
+  min-height: 480px;
 }
+
 .chart-card:hover { box-shadow: var(--shadow-hover); }
 
 .chart-header {
@@ -518,15 +493,16 @@ body {
 .chart-body {
   flex: 1;
   position: relative;
-  min-height: 260px;
+  min-height: 380px;
 }
 
 .chart-body canvas {
   width: 100% !important;
+  height: 100% !important;
 }
 
 /* ============================================================
-   TABLE
+   TABELA
    ============================================================ */
 .table-section {
   padding: 20px 24px;
@@ -626,7 +602,6 @@ body {
 }
 .data-table tbody tr:hover { background: rgba(74,144,217,0.06); }
 .data-table tbody tr:nth-child(even) { background: rgba(240,244,248,0.6); }
-.data-table tbody tr:nth-child(even):hover { background: rgba(74,144,217,0.06); }
 
 .data-table tbody td {
   padding: 11px 14px;
@@ -718,12 +693,25 @@ body {
 .footer p:first-child { color: rgba(255,255,255,0.75); font-weight: 500; }
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVO PARA TABLET E MOBILE (GRÁFICOS E GERAL)
    ============================================================ */
+
+/* TABLET (768px - 1100px) */
 @media (max-width: 1100px) {
-  .charts-row { grid-template-columns: 1fr; }
+  .charts-row { 
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-card {
+    min-height: 420px;
+  }
+  
+  .chart-body {
+    min-height: 320px;
+  }
 }
 
+/* MOBILE GRANDE (576px - 768px) */
 @media (max-width: 768px) {
   .header { padding: 0 16px; }
   .header-main { font-size: 1.05rem; }
@@ -735,8 +723,22 @@ body {
   .search-box input { width: 140px; }
   .header-actions { gap: 8px; }
   .btn { padding: 8px 14px; font-size: 0.8rem; }
+  
+  .chart-card {
+    min-height: 380px;
+    padding: 16px 18px;
+  }
+  
+  .chart-body {
+    min-height: 280px;
+  }
+  
+  .chart-header h4 {
+    font-size: 0.8rem;
+  }
 }
 
+/* MOBILE PEQUENO (até 480px) */
 @media (max-width: 480px) {
   .kpi-section { grid-template-columns: repeat(2, 1fr); }
   .filters-grid { grid-template-columns: 1fr; }
@@ -744,6 +746,20 @@ body {
   .header-actions { width: 100%; justify-content: flex-start; }
   .search-box input { width: 100px; }
   .kpi-value { font-size: 1.3rem; }
+  
+  .chart-card {
+    min-height: 340px;
+    padding: 14px 16px;
+  }
+  
+  .chart-body {
+    min-height: 240px;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 /* ============================================================
@@ -762,8 +778,20 @@ body {
 .main-content > *:nth-child(4) { animation-delay: 0.20s; }
 .main-content > *:nth-child(5) { animation-delay: 0.25s; }
 
-/* ---- Tooltip chart override ---- */
-.chartjs-tooltip {
-  border-radius: 10px !important;
+/* ============================================================
+   FLATPICKR CUSTOM
+   ============================================================ */
+.flatpickr-calendar {
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(30,58,95,0.2) !important;
+  border: 1.5px solid var(--border) !important;
   font-family: 'Inter', sans-serif !important;
 }
+.flatpickr-day.selected, .flatpickr-day.selected:hover {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.flatpickr-day.today { border-color: var(--accent) !important; }
+.flatpickr-months .flatpickr-month { background: var(--primary) !important; border-radius: 10px 10px 0 0; }
+.flatpickr-current-month { color: #fff !important; }
+.flatpickr-weekday { color: var(--accent) !important; font-weight: 600 !important; }
