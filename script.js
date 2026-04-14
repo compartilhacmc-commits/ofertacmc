@@ -1,6 +1,6 @@
 /* ============================================================
    DIRETORIA DE REGULAÇÃO DO ACESSO – DASHBOARD
-   script.js – v3.0 (com novos cards e filtros)
+   script.js – v3.1 (COMPLETO)
    ============================================================ */
 
 'use strict';
@@ -10,12 +10,10 @@ Chart.register(ChartDataLabels);
 // ============================================================
 // CONFIGURAÇÕES
 // ============================================================
-const SHEET_ID  = '1puNbYysRBj-5CY6fhnHNnYd9OH96cl7guMFBOLeYZV4';
+const SHEET_ID = '1puNbYysRBj-5CY6fhnHNnYd9OH96cl7guMFBOLeYZV4';
 const SHEET_GID = '1698493941';
 
-// Melhoria pontual para evitar cache/intermediários do Google:
-// tenta GVIZ primeiro e usa fallback para export
-const CSV_URL_GVIZ   = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+const CSV_URL_GVIZ = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 const CSV_URL_EXPORT = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
 
 // ============================================================
@@ -37,7 +35,7 @@ const OPERADORES = {
 };
 
 // ============================================================
-// MAPEAMENTO DE DISTRITOS (mantido para compatibilidade, mas não usado nos filtros)
+// MAPEAMENTO DE DISTRITOS
 // ============================================================
 const DISTRITO_MAP = {
   'UNIDADE BASICA DE SAUDE JARDIM BANDEIRANTES': 'ELDORADO',
@@ -125,23 +123,21 @@ const DISTRITO_MAP = {
 };
 
 const CAE_UNITS = ['CAE IRIA DINIZ', 'CAE RESSACA', 'CEAPS'];
-
-const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 // ============================================================
 // ESTADO GLOBAL
 // ============================================================
-let allData        = [];
-let filteredData   = [];
-let tableData      = [];
-let tableSearched  = [];
-let currentPage    = 1;
-let sortColIdx     = -1;
-let sortAscFlag    = true;
-
-let chartPrestador        = null;
-let chartTipoAtendimento  = null;
+let allData = [];
+let filteredData = [];
+let tableData = [];
+let tableSearched = [];
+let currentPage = 1;
+let sortColIdx = -1;
+let sortAscFlag = true;
+let chartPrestador = null;
+let chartTipoAtendimento = null;
 
 // ============================================================
 // UTILITÁRIOS
@@ -155,7 +151,7 @@ function norm(str) {
 
 function titleCase(str) {
   if (!str) return '';
-  const artigos = ['DE','DA','DO','DAS','DOS','E','A','O','EM','NO','NA','NOS','NAS','POR','COM','PARA'];
+  const artigos = ['DE', 'DA', 'DO', 'DAS', 'DOS', 'E', 'A', 'O', 'EM', 'NO', 'NA', 'NOS', 'NAS', 'POR', 'COM', 'PARA'];
   return str.toString().toLowerCase().split(' ').map((w, i) => {
     if (i === 0 || !artigos.includes(w.toUpperCase())) {
       return w.charAt(0).toUpperCase() + w.slice(1);
@@ -237,17 +233,17 @@ function parseDate(str) {
   if (!str) return null;
   str = str.toString().trim();
   let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
   m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
   return null;
 }
 
 function isSameDay(d1, d2) {
   if (!d1 || !d2) return false;
   return d1.getFullYear() === d2.getFullYear() &&
-         d1.getMonth()    === d2.getMonth()    &&
-         d1.getDate()     === d2.getDate();
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
 }
 
 // ============================================================
@@ -256,7 +252,7 @@ function isSameDay(d1, d2) {
 function looksLikeHtml(text) {
   if (!text) return false;
   const t = text.trim().slice(0, 200).toLowerCase();
-  return t.startsWith('<!doctype html') || t.startsWith('<html') || t.includes('<head') || t.includes('<body');
+  return t.startsWith('<!doctype') || t.startsWith('<html') || t.includes('<head') || t.includes('<body');
 }
 
 async function fetchCsvText(urlBase) {
@@ -270,12 +266,11 @@ async function loadData() {
   showLoading(true);
   setStatus('Carregando...', false);
   const icon = document.getElementById('refreshIcon');
-  icon.classList.add('spinning');
+  if (icon) icon.classList.add('spinning');
 
   try {
     let text = await fetchCsvText(CSV_URL_GVIZ);
 
-    // Fallback para export se vier HTML por algum motivo
     if (looksLikeHtml(text)) {
       text = await fetchCsvText(CSV_URL_EXPORT);
     }
@@ -296,19 +291,19 @@ async function loadData() {
         setStatus('Conectado', true);
         updateLastUpdate();
         showLoading(false);
-        icon.classList.remove('spinning');
+        if (icon) icon.classList.remove('spinning');
       },
       error: function(err) {
         console.error('Parse error:', err);
         showError('Erro ao processar os dados.');
-        icon.classList.remove('spinning');
+        if (icon) icon.classList.remove('spinning');
         showLoading(false);
       }
     });
   } catch (err) {
     console.error('Fetch error:', err);
     showError('Não foi possível carregar os dados. Verifique as permissões da planilha.');
-    icon.classList.remove('spinning');
+    if (icon) icon.classList.remove('spinning');
     showLoading(false);
   }
 }
@@ -334,22 +329,22 @@ function normalizeData(rows) {
       'UNIDADE DE REFERÊNCIA': get('UNIDADE DE REFERÊNCIA', 'UNIDADE DE REFERENCIA'),
     });
 
-    const nomeCBO       = get('NOME CBO');
+    const nomeCBO = get('NOME CBO');
     const especialidade = get('ESPECIALIDADE');
-    const cbof          = formatCBO(nomeCBO, especialidade);
-    const profissional  = formatProfissional(get('NOME PROFISSIONAL'));
-    const tipoAtend     = getTipoAtendimento(get('TIPO DE ATENDIMENTO'));
-    const situacao      = (get('SITUAÇÃO', 'SITUACAO') || '').toUpperCase().trim();
-    const operCod       = get('OPERADOR AGENDAMENTO');
+    const cbof = formatCBO(nomeCBO, especialidade);
+    const profissional = formatProfissional(get('NOME PROFISSIONAL'));
+    const tipoAtend = getTipoAtendimento(get('TIPO DE ATENDIMENTO'));
+    const situacao = (get('SITUAÇÃO', 'SITUACAO') || '').toUpperCase().trim();
+    const operCod = get('OPERADOR AGENDAMENTO');
 
-    const dataCriacao       = get('DATA CRIAÇÃO DO AGENDAMENTO', 'DATA CRIACAO DO AGENDAMENTO', 'DATA CRIAÇÃO', 'DATA_CRIACAO');
+    const dataCriacao = get('DATA CRIAÇÃO DO AGENDAMENTO', 'DATA CRIACAO DO AGENDAMENTO', 'DATA CRIAÇÃO', 'DATA_CRIACAO');
     const dataCriacaoParsed = parseDate(dataCriacao);
 
-    const dataAgenda       = get('DATA AGENDA', 'DATA_AGENDA');
+    const dataAgenda = get('DATA AGENDA', 'DATA_AGENDA');
     const dataAgendaParsed = parseDate(dataAgenda);
 
     const unidadeExec = get('UNIDADE EXECUTANTE');
-    const distrito    = getDistrito(unidadeSolicitante);
+    const distrito = getDistrito(unidadeSolicitante);
 
     let mesLabel = '';
     if (dataAgendaParsed) {
@@ -357,26 +352,26 @@ function normalizeData(rows) {
     }
 
     return {
-      _raw:              row,
+      _raw: row,
       unidadeExecutante: unidadeExec,
-      unidadeSolicitante,
-      cbo:               cbof,
-      especialidade:     especialidade ? titleCase(especialidade.toString()) : '',
+      unidadeSolicitante: unidadeSolicitante,
+      cbo: cbof,
+      especialidade: especialidade ? titleCase(especialidade.toString()) : '',
       nomeCBO,
       profissional,
-      tipoAtendimento:   tipoAtend,
+      tipoAtendimento: tipoAtend,
       situacao,
-      situacaoLabel:     getSituacaoLabel(situacao),
-      operadorCod:       operCod,
-      operador:          getOperador(operCod),
+      situacaoLabel: getSituacaoLabel(situacao),
+      operadorCod: operCod,
+      operador: getOperador(operCod),
       dataCriacao,
       dataCriacaoParsed,
       dataAgenda,
       dataAgendaParsed,
-      mesAgendamento:    mesLabel,
+      mesAgendamento: mesLabel,
       distrito,
-      valor:             parseFloat((get('VALOR') || '0').toString().replace(',', '.')) || 0,
-      quantidade:        parseInt(get('QUANTIDADE') || '1') || 1,
+      valor: parseFloat((get('VALOR') || '0').toString().replace(',', '.')) || 0,
+      quantidade: parseInt(get('QUANTIDADE') || '1') || 1,
     };
   }).filter(r => r.unidadeExecutante || r.profissional);
 }
@@ -385,19 +380,20 @@ function normalizeData(rows) {
 // POPULAR FILTROS
 // ============================================================
 function populateFilterOptions() {
-  populateSelect('filterPrestador',    [...new Set(allData.map(r => r.unidadeExecutante).filter(Boolean))].sort());
-  populateSelect('filterEspecialidade',[...new Set(allData.map(r => r.cbo).filter(Boolean))].sort());
+  populateSelect('filterPrestador', [...new Set(allData.map(r => r.unidadeExecutante).filter(Boolean))].sort());
+  populateSelect('filterUnidadeSolicitante', [...new Set(allData.map(r => r.unidadeSolicitante).filter(Boolean))].sort());
+  populateSelect('filterEspecialidade', [...new Set(allData.map(r => r.cbo).filter(Boolean))].sort());
   populateSelect('filterProfissional', [...new Set(allData.map(r => r.profissional).filter(Boolean))].sort());
 
   const mesesSet = {};
   allData.forEach(r => {
     if (r.dataAgendaParsed && r.mesAgendamento) {
-      const d   = r.dataAgendaParsed;
+      const d = r.dataAgendaParsed;
       const key = d.getFullYear() * 100 + d.getMonth();
       mesesSet[key] = r.mesAgendamento;
     }
   });
-  const mesesOrdenados = Object.entries(mesesSet).sort((a,b) => +a[0] - +b[0]).map(e => e[1]);
+  const mesesOrdenados = Object.entries(mesesSet).sort((a, b) => +a[0] - +b[0]).map(e => e[1]);
   populateSelect('filterMes', mesesOrdenados);
 }
 
@@ -413,27 +409,28 @@ function populateSelect(id, values) {
     opt.textContent = v;
     sel.appendChild(opt);
   });
-  if (current) sel.value = current;
+  if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
 }
 
 // ============================================================
 // APLICAR FILTROS
 // ============================================================
 function applyFilters() {
-  const prestador     = document.getElementById('filterPrestador')?.value    || '';
-  const especialidade = document.getElementById('filterEspecialidade')?.value|| '';
-  const tipoServico   = document.getElementById('filterTipoServico')?.value  || '';
-  const profissional  = document.getElementById('filterProfissional')?.value || '';
-  const mes           = document.getElementById('filterMes')?.value          || '';
-
+  const prestador = document.getElementById('filterPrestador')?.value || '';
+  const unidadeSol = document.getElementById('filterUnidadeSolicitante')?.value || '';
+  const especialidade = document.getElementById('filterEspecialidade')?.value || '';
+  const tipoServico = document.getElementById('filterTipoServico')?.value || '';
+  const profissional = document.getElementById('filterProfissional')?.value || '';
+  const mes = document.getElementById('filterMes')?.value || '';
   const dataCriacaoSelecionada = window._fpInicio ? window._fpInicio.selectedDates[0] : null;
 
   filteredData = allData.filter(r => {
-    if (prestador     && r.unidadeExecutante   !== prestador)     return false;
-    if (especialidade && r.cbo                !== especialidade)  return false;
-    if (tipoServico   && r.tipoAtendimento    !== tipoServico)    return false;
-    if (profissional  && r.profissional       !== profissional)   return false;
-    if (mes           && r.mesAgendamento     !== mes)            return false;
+    if (prestador && r.unidadeExecutante !== prestador) return false;
+    if (unidadeSol && r.unidadeSolicitante !== unidadeSol) return false;
+    if (especialidade && r.cbo !== especialidade) return false;
+    if (tipoServico && r.tipoAtendimento !== tipoServico) return false;
+    if (profissional && r.profissional !== profissional) return false;
+    if (mes && r.mesAgendamento !== mes) return false;
     if (dataCriacaoSelecionada) {
       if (!r.dataCriacaoParsed) return false;
       if (!isSameDay(r.dataCriacaoParsed, dataCriacaoSelecionada)) return false;
@@ -449,8 +446,8 @@ function applyFilters() {
 }
 
 function clearFilters() {
-  ['filterPrestador','filterEspecialidade','filterTipoServico','filterProfissional',
-   'filterMes'].forEach(id => {
+  ['filterPrestador', 'filterUnidadeSolicitante', 'filterEspecialidade',
+   'filterTipoServico', 'filterProfissional', 'filterMes'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -459,7 +456,7 @@ function clearFilters() {
 }
 
 // ============================================================
-// NOVOS KPIS
+// KPIS
 // ============================================================
 function updateKPIs() {
   const total = filteredData.length;
@@ -467,7 +464,6 @@ function updateKPIs() {
   const hoje = new Date();
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
-
   const mesAtualStr = MESES_PT[mesAtual] + '/' + anoAtual;
 
   let proximoMes = mesAtual + 1;
@@ -489,8 +485,11 @@ function updateKPIs() {
 function animateCount(id, target) {
   const el = document.getElementById(id);
   if (!el) return;
-  const current = parseInt(el.textContent.replace(/\D/g,'')) || 0;
-  if (current === target) { el.textContent = fmt(target); return; }
+  const current = parseInt(el.textContent.replace(/\D/g, '')) || 0;
+  if (current === target) {
+    el.textContent = fmt(target);
+    return;
+  }
   const step = Math.max(1, Math.round(Math.abs(target - current) / 20));
   let val = current;
   const inc = target > current ? step : -step;
@@ -505,15 +504,15 @@ function animateCount(id, target) {
 }
 
 // ============================================================
-// GRÁFICOS (APENAS PRESTADOR E TIPO ATENDIMENTO)
+// GRÁFICOS
 // ============================================================
-const PALETTE_BLUE   = ['#1e3a5f','#2d5494','#4a90d9','#74b3e8','#a8d1f5','#c8e4fb'];
-const DARK_BLUE      = '#1e3a5f';
+const PALETTE_BLUE = ['#1e3a5f', '#2d5494', '#4a90d9', '#74b3e8', '#a8d1f5', '#c8e4fb'];
+const DARK_BLUE = '#1e3a5f';
 
 const TOOLTIP_BASE = {
   backgroundColor: 'rgba(20,40,68,0.92)',
   titleFont: { family: 'Inter', size: 12, weight: '700' },
-  bodyFont:  { family: 'Inter', size: 11 },
+  bodyFont: { family: 'Inter', size: 11 },
   padding: 12,
   cornerRadius: 10,
   callbacks: { label: ctx => ` ${fmt(ctx.raw)}` }
@@ -530,7 +529,7 @@ function countBy(data, keyFn) {
 }
 
 function sortedEntries(obj, limit = 0) {
-  let entries = Object.entries(obj).sort((a,b) => b[1]-a[1]);
+  let entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
   if (limit > 0) entries = entries.slice(0, limit);
   return entries;
 }
@@ -544,10 +543,10 @@ function renderChartPrestador() {
   const ctx = document.getElementById('chartPrestador')?.getContext('2d');
   if (!ctx) return;
 
-  const counts  = countBy(filteredData, r => r.unidadeExecutante);
+  const counts = countBy(filteredData, r => r.unidadeExecutante);
   const entries = sortedEntries(counts, 12);
-  const labels  = entries.map(e => e[0]);
-  const data    = entries.map(e => e[1]);
+  const labels = entries.map(e => e[0]);
+  const data = entries.map(e => e[1]);
 
   if (chartPrestador) chartPrestador.destroy();
   chartPrestador = new Chart(ctx, {
@@ -558,7 +557,7 @@ function renderChartPrestador() {
         label: 'Agendamentos',
         data,
         backgroundColor: labels.map((_, i) => PALETTE_BLUE[i % PALETTE_BLUE.length] + 'dd'),
-        borderColor:     labels.map((_, i) => PALETTE_BLUE[i % PALETTE_BLUE.length]),
+        borderColor: labels.map((_, i) => PALETTE_BLUE[i % PALETTE_BLUE.length]),
         borderWidth: 2,
         borderRadius: 6,
         borderSkipped: false,
@@ -590,7 +589,7 @@ function renderChartPrestador() {
             minRotation: 20,
             callback: function(val) {
               const label = this.getLabelForValue(val);
-              return label && label.length > 18 ? label.substring(0,16)+'…' : label;
+              return label && label.length > 18 ? label.substring(0, 16) + '…' : label;
             }
           },
           grid: { display: false }
@@ -609,7 +608,7 @@ function renderChartTipoAtendimento() {
   const ctx = document.getElementById('chartTipoAtendimento')?.getContext('2d');
   if (!ctx) return;
 
-  const pc  = filteredData.filter(r => r.tipoAtendimento === 'Primeira Consulta').length;
+  const pc = filteredData.filter(r => r.tipoAtendimento === 'Primeira Consulta').length;
   const ret = filteredData.filter(r => r.tipoAtendimento === 'Retorno').length;
 
   if (chartTipoAtendimento) chartTipoAtendimento.destroy();
@@ -621,7 +620,7 @@ function renderChartTipoAtendimento() {
         label: 'Quantidade',
         data: [pc, ret],
         backgroundColor: ['rgba(30,58,95,0.88)', 'rgba(39,174,96,0.88)'],
-        borderColor:     ['#1e3a5f', '#27ae60'],
+        borderColor: ['#1e3a5f', '#27ae60'],
         borderWidth: 2,
         borderRadius: 8,
         borderSkipped: false,
@@ -668,25 +667,26 @@ function renderChartTipoAtendimento() {
 function buildTableData() {
   const map = {};
   filteredData.forEach(r => {
-    const key = `${r.unidadeExecutante}|||${r.cbo}|||${r.especialidade}|||${r.profissional}|||${r.operador}`;
+    const key = `${r.unidadeExecutante}|||${r.unidadeSolicitante}|||${r.cbo}|||${r.especialidade}|||${r.profissional}|||${r.operador}`;
     if (!map[key]) {
       map[key] = {
         unidadeExecutante: r.unidadeExecutante,
-        cbo:               r.cbo,
-        especialidade:     r.especialidade,
-        profissional:      r.profissional,
-        operador:          r.operador,
-        primeira:          0,
-        retorno:           0,
-        total:             0
+        unidadeSolicitante: r.unidadeSolicitante,
+        cbo: r.cbo,
+        especialidade: r.especialidade,
+        profissional: r.profissional,
+        operador: r.operador,
+        primeira: 0,
+        retorno: 0,
+        total: 0
       };
     }
     if (r.tipoAtendimento === 'Primeira Consulta') map[key].primeira++;
-    else if (r.tipoAtendimento === 'Retorno')       map[key].retorno++;
+    else if (r.tipoAtendimento === 'Retorno') map[key].retorno++;
     map[key].total++;
   });
 
-  tableData     = Object.values(map).sort((a,b) => b.total - a.total);
+  tableData = Object.values(map).sort((a, b) => b.total - a.total);
   tableSearched = [...tableData];
 }
 
@@ -695,11 +695,12 @@ function filterTable() {
   tableSearched = !q
     ? [...tableData]
     : tableData.filter(r =>
-        (r.unidadeExecutante||'').toLowerCase().includes(q) ||
-        (r.cbo||'').toLowerCase().includes(q) ||
-        (r.profissional||'').toLowerCase().includes(q) ||
-        (r.especialidade||'').toLowerCase().includes(q) ||
-        (r.operador||'').toLowerCase().includes(q)
+        (r.unidadeExecutante || '').toLowerCase().includes(q) ||
+        (r.unidadeSolicitante || '').toLowerCase().includes(q) ||
+        (r.cbo || '').toLowerCase().includes(q) ||
+        (r.profissional || '').toLowerCase().includes(q) ||
+        (r.especialidade || '').toLowerCase().includes(q) ||
+        (r.operador || '').toLowerCase().includes(q)
       );
   currentPage = 1;
   renderTable();
@@ -707,10 +708,13 @@ function filterTable() {
 
 function sortTable(col) {
   if (sortColIdx === col) sortAscFlag = !sortAscFlag;
-  else { sortColIdx = col; sortAscFlag = true; }
+  else {
+    sortColIdx = col;
+    sortAscFlag = true;
+  }
 
-  const keys = ['unidadeExecutante','cbo','profissional','primeira','retorno','total','operador'];
-  const key  = keys[col];
+  const keys = ['unidadeExecutante', 'unidadeSolicitante', 'cbo', 'profissional', 'primeira', 'retorno', 'total', 'operador'];
+  const key = keys[col];
   tableSearched.sort((a, b) => {
     const va = a[key] ?? '';
     const vb = b[key] ?? '';
@@ -722,8 +726,8 @@ function sortTable(col) {
 
 function renderTable() {
   const pageSize = parseInt(document.getElementById('tablePageSize')?.value || 15);
-  const total    = tableSearched.length;
-  const pages    = Math.max(1, Math.ceil(total / pageSize));
+  const total = tableSearched.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
   if (currentPage > pages) currentPage = pages;
 
   const start = (currentPage - 1) * pageSize;
@@ -731,15 +735,15 @@ function renderTable() {
 
   const tbody = document.getElementById('tableBody');
   const tfoot = document.getElementById('tableFoot');
-  if (!tbody) return;
 
   if (slice.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">Nenhum registro encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Nenhum registro encontrado.</td></tr>';
     tfoot.innerHTML = '';
   } else {
     tbody.innerHTML = slice.map(r => `
       <tr>
         <td>${r.unidadeExecutante || '–'}</td>
+        <td>${r.unidadeSolicitante || '–'}</td>
         <td>
           <div style="font-weight:600;color:#1e3a5f;">${r.cbo || '–'}</div>
           ${r.especialidade ? `<div style="font-size:0.74rem;color:#7a8fa6;margin-top:2px;">${r.especialidade}</div>` : ''}
@@ -752,23 +756,24 @@ function renderTable() {
       </tr>
     `).join('');
 
-    const totPrimeira = tableSearched.reduce((s,r) => s + r.primeira, 0);
-    const totRetorno  = tableSearched.reduce((s,r) => s + r.retorno,  0);
-    const totGeral    = tableSearched.reduce((s,r) => s + r.total,    0);
+    const totPrimeira = tableSearched.reduce((s, r) => s + r.primeira, 0);
+    const totRetorno = tableSearched.reduce((s, r) => s + r.retorno, 0);
+    const totGeral = tableSearched.reduce((s, r) => s + r.total, 0);
 
     tfoot.innerHTML = `
       <tr>
-        <td colspan="3"><i class="fas fa-calculator" style="margin-right:6px;"></i>TOTAL GERAL (${fmt(tableSearched.length)} registros)</td>
-        <td class="text-center">${fmt(totPrimeira)}</td>
-        <td class="text-center">${fmt(totRetorno)}</td>
-        <td class="text-center">${fmt(totGeral)}</td>
+        <td colspan="2"><i class="fas fa-calculator" style="margin-right:6px;"></i>TOTAL GERAL (${fmt(tableSearched.length)} registros)</td>
+        <td colspan="2">–</td>
+        <td class="text-center"><strong>${fmt(totPrimeira)}</strong></td>
+        <td class="text-center"><strong>${fmt(totRetorno)}</strong></td>
+        <td class="text-center"><strong>${fmt(totGeral)}</strong></td>
         <td>–</td>
       </tr>
     `;
   }
 
   document.getElementById('tablePaginationInfo').textContent =
-    `Mostrando ${total === 0 ? 0 : start+1} a ${Math.min(start+pageSize, total)} de ${fmt(total)} registros`;
+    `Mostrando ${total === 0 ? 0 : start + 1} a ${Math.min(start + pageSize, total)} de ${fmt(total)} registros`;
 
   renderPagination(currentPage, pages);
 }
@@ -777,16 +782,16 @@ function renderPagination(cur, total) {
   const container = document.getElementById('pagination');
   if (!container) return;
 
-  let html = `<button class="page-btn" onclick="goPage(${cur-1})" ${cur===1?'disabled':''}>‹</button>`;
+  let html = `<button class="page-btn" onclick="goPage(${cur - 1})" ${cur === 1 ? 'disabled' : ''}>‹</button>`;
 
   let pages = [];
   if (total <= 7) {
-    for (let i=1; i<=total; i++) pages.push(i);
+    for (let i = 1; i <= total; i++) pages.push(i);
   } else {
     pages = [1];
     if (cur > 3) pages.push('...');
-    for (let i=Math.max(2,cur-1); i<=Math.min(total-1,cur+1); i++) pages.push(i);
-    if (cur < total-2) pages.push('...');
+    for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) pages.push(i);
+    if (cur < total - 2) pages.push('...');
     pages.push(total);
   }
 
@@ -794,17 +799,17 @@ function renderPagination(cur, total) {
     if (p === '...') {
       html += `<button class="page-btn" disabled>…</button>`;
     } else {
-      html += `<button class="page-btn ${p===cur?'active':''}" onclick="goPage(${p})">${p}</button>`;
+      html += `<button class="page-btn ${p === cur ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
     }
   });
 
-  html += `<button class="page-btn" onclick="goPage(${cur+1})" ${cur===total?'disabled':''}>›</button>`;
+  html += `<button class="page-btn" onclick="goPage(${cur + 1})" ${cur === total ? 'disabled' : ''}>›</button>`;
   container.innerHTML = html;
 }
 
 function goPage(p) {
   const pageSize = parseInt(document.getElementById('tablePageSize')?.value || 15);
-  const pages    = Math.max(1, Math.ceil(tableSearched.length / pageSize));
+  const pages = Math.max(1, Math.ceil(tableSearched.length / pageSize));
   if (p < 1 || p > pages) return;
   currentPage = p;
   renderTable();
@@ -825,32 +830,33 @@ function exportExcel() {
   setTimeout(() => {
     try {
       const wsData = filteredData.map(r => ({
-        'Unidade Executante':  r.unidadeExecutante,
+        'Unidade Executante': r.unidadeExecutante,
         'Unidade Solicitante': r.unidadeSolicitante,
-        'Distrito':            r.distrito,
+        'Distrito': r.distrito,
         'Especialidade (CBO)': r.cbo,
-        'Tipo Especialidade':  r.especialidade,
-        'Profissional':        r.profissional,
-        'Tipo Atendimento':    r.tipoAtendimento,
-        'Situação':            r.situacaoLabel,
-        'Operador':            r.operador,
-        'Data Agenda':         r.dataAgenda,
-        'Data Criação':        r.dataCriacao,
-        'Mês Agendamento':     r.mesAgendamento
+        'Tipo Especialidade': r.especialidade,
+        'Profissional': r.profissional,
+        'Tipo Atendimento': r.tipoAtendimento,
+        'Situação': r.situacaoLabel,
+        'Operador': r.operador,
+        'Data Agenda': r.dataAgenda,
+        'Data Criação': r.dataCriacao,
+        'Mês Agendamento': r.mesAgendamento
       }));
 
       const wsSummary = tableData.map(r => ({
-        'Unidade Executante':    r.unidadeExecutante,
-        'CBO / Especialidade':   r.cbo,
+        'Unidade Executante': r.unidadeExecutante,
+        'Unidade Solicitante': r.unidadeSolicitante,
+        'CBO / Especialidade': r.cbo,
         'Tipo de Especialidade': r.especialidade,
-        'Profissional':          r.profissional,
-        'Total 1ª Consulta':     r.primeira,
-        'Total Retorno':         r.retorno,
-        'Total Geral':           r.total,
-        'Operador':              r.operador
+        'Profissional': r.profissional,
+        'Total 1ª Consulta': r.primeira,
+        'Total Retorno': r.retorno,
+        'Total Geral': r.total,
+        'Operador': r.operador
       }));
 
-      const wb  = XLSX.utils.book_new();
+      const wb = XLSX.utils.book_new();
       const ws1 = XLSX.utils.json_to_sheet(wsData);
       autoSizeColumns(ws1, wsData);
       XLSX.utils.book_append_sheet(wb, ws1, 'Dados Filtrados');
@@ -859,10 +865,10 @@ function exportExcel() {
       autoSizeColumns(ws2, wsSummary);
       XLSX.utils.book_append_sheet(wb, ws2, 'Resumo por Profissional');
 
-      const now   = new Date();
-      const fname = `Agendamentos_CMC_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
+      const now = new Date();
+      const fname = `Agendamentos_CMC_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}.xlsx`;
       XLSX.writeFile(wb, fname);
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       alert('Erro ao gerar o arquivo Excel.');
     }
@@ -876,7 +882,7 @@ function autoSizeColumns(ws, data) {
   const cols = Object.keys(data[0]);
   ws['!cols'] = cols.map(col => ({
     wch: Math.min(
-      data.reduce((max, row) => Math.max(max, (row[col]||'').toString().length), col.length) + 2,
+      data.reduce((max, row) => Math.max(max, (row[col] || '').toString().length), col.length) + 2,
       60
     )
   }));
@@ -890,10 +896,10 @@ function showLoading(show) {
 }
 
 function setStatus(msg, ok) {
-  const el  = document.getElementById('statusText');
+  const el = document.getElementById('statusText');
   const dot = document.querySelector('.status-dot');
-  if (el)  el.textContent = msg;
-  if (dot) dot.className  = 'status-dot ' + (ok ? 'connected' : 'error');
+  if (el) el.textContent = msg;
+  if (dot) dot.className = 'status-dot ' + (ok ? 'connected' : 'error');
 }
 
 function showError(msg) {
