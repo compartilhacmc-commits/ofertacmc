@@ -309,10 +309,11 @@ async function loadData() {
 }
 
 // ============================================================
-// NORMALIZAR DADOS
+// NORMALIZAR DADOS (ATUALIZADO PARA AS NOVAS COLUNAS)
 // ============================================================
 function normalizeData(rows) {
   return rows.map(row => {
+    // Mapeamento de colunas com base na nova nomenclatura
     const get = (...keys) => {
       for (const k of keys) {
         if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
@@ -324,6 +325,8 @@ function normalizeData(rows) {
       return '';
     };
 
+    // Colunas da nova planilha
+    const unidadeExecutante = get('UNIDADE EXECUTANTE');
     const unidadeSolicitante = getUnidade({
       'UNIDADE SOLICITANTE': get('UNIDADE SOLICITANTE'),
       'UNIDADE DE REFERÊNCIA': get('UNIDADE DE REFERÊNCIA', 'UNIDADE DE REFERENCIA'),
@@ -333,7 +336,7 @@ function normalizeData(rows) {
     const especialidade = get('ESPECIALIDADE');
     const cbof = formatCBO(nomeCBO, especialidade);
     const profissional = formatProfissional(get('NOME PROFISSIONAL'));
-    const tipoAtend = getTipoAtendimento(get('TIPO DE ATENDIMENTO'));
+    const tipoAtendimento = getTipoAtendimento(get('TIPO DE ATENDIMENTO'));
     const situacao = (get('SITUAÇÃO', 'SITUACAO') || '').toUpperCase().trim();
     const operCod = get('OPERADOR AGENDAMENTO');
 
@@ -343,7 +346,6 @@ function normalizeData(rows) {
     const dataAgenda = get('DATA AGENDA', 'DATA_AGENDA');
     const dataAgendaParsed = parseDate(dataAgenda);
 
-    const unidadeExec = get('UNIDADE EXECUTANTE');
     const distrito = getDistrito(unidadeSolicitante);
 
     let mesLabel = '';
@@ -353,13 +355,13 @@ function normalizeData(rows) {
 
     return {
       _raw: row,
-      unidadeExecutante: unidadeExec,
+      unidadeExecutante: unidadeExecutante,
       unidadeSolicitante: unidadeSolicitante,
       cbo: cbof,
       especialidade: especialidade ? titleCase(especialidade.toString()) : '',
       nomeCBO,
       profissional,
-      tipoAtendimento: tipoAtend,
+      tipoAtendimento: tipoAtendimento,
       situacao,
       situacaoLabel: getSituacaoLabel(situacao),
       operadorCod: operCod,
